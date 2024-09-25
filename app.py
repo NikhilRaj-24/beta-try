@@ -1,3 +1,4 @@
+# Existing imports
 import gspread
 from google.oauth2.service_account import Credentials
 from flask import Flask, render_template, request, jsonify
@@ -9,7 +10,11 @@ from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestRegressor
 import traceback
 from datetime import datetime
+from dotenv import load_dotenv
 import os
+
+# Load environment variables
+load_dotenv()
 
 # Google Sheets setup
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
@@ -116,7 +121,8 @@ def predict():
     try:
         form_data = request.form
 
-        # Get user input from the form
+        # Get user input from the form, including the new vehicle number field
+        vehicle_number = form_data.get('vehicle_number', '')  # Capture vehicle number
         make = form_data['make']
         model = form_data['model']
         variant = form_data['variant']
@@ -152,9 +158,12 @@ def predict():
             (df['Transmission'] == transmission) &
             (df['Fuel Type'] == fuel_type)
         ].shape[0]
+        
+        predicted_price = int(predicted_price)
+        predicted_price = round(predicted_price, -2)
 
-        # Add data to Google Sheets with placeholder for feedback and suggested price
-        row = [make, model, variant, transmission, fuel_type, city, distance_numeric, age,
+        # Add data to Google Sheets, including the vehicle number
+        row = [vehicle_number, make, model, variant, transmission, fuel_type, city, distance_numeric, age,
                predicted_price, "", "", str(datetime.now())]
 
         sheet.append_row(row)
