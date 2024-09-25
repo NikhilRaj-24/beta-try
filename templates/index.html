@@ -9,6 +9,10 @@
     <!-- Add jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
+    <!-- Select2 CSS and JS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
     <!-- Favicon for the taskbar -->
     <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/3307/3307164.png" type="image/png" />
 
@@ -21,17 +25,18 @@
         }
 
         .container {
-            max-width: 600px;
+            max-width: 700px;
             margin: auto;
             background: white;
-            padding: 20px;
+            padding: 25px;
             border-radius: 10px;
-            box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1);
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
         }
 
         h2 {
             text-align: center;
             margin-bottom: 20px;
+            font-size: 24px;
         }
 
         form {
@@ -41,28 +46,44 @@
 
         label {
             margin-bottom: 5px;
+            font-size: 16px;
         }
 
         input,
         select,
-        textarea {
-            padding: 10px;
-            margin-bottom: 15px;
+        .select2-container--default .select2-selection--single {
+            padding: 8px;
+            margin-bottom: 12px;
             border: 1px solid #ccc;
             border-radius: 5px;
-            font-size: 16px;
+            font-size: 14px;
             width: 100%;
             box-sizing: border-box;
         }
 
+        /* Set Select2 elements to match the size of the input fields */
+        .select2-container .select2-selection--single {
+            height: 38px;
+        }
+
+        .select2-selection__rendered {
+            padding-top: 4px;
+        }
+
+        .select2-selection__arrow {
+            height: 38px;
+        }
+
         button {
-            padding: 10px;
+            padding: 12px;
             background-color: #28a745;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 18px;
+            margin-top: 15px;
+            transition: background-color 0.3s ease;
         }
 
         button:hover {
@@ -88,14 +109,23 @@
             display: none;
         }
 
-        /* Feedback box styling adjusted for consistent alignment */
-        .feedback-box {
-            margin-top: 20px;
+        /* Feedback textarea styling */
+        textarea {
+            padding: 8px;
+            margin-bottom: 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            width: 100%;
+            box-sizing: border-box;
         }
 
-        /* New suggested-price class to create spacing */
-        .suggested-price {
-            margin-top: 20px;
+        .feedback-box {
+            margin-top: 15px;
+        }
+
+        .select2-container {
+            margin-bottom: 12px;
         }
     </style>
 </head>
@@ -109,28 +139,32 @@
             <input type="text" id="vehicle_number" name="vehicle_number" placeholder="Enter vehicle number">
 
             <label for="make">Make:</label>
-            <input list="make-list" id="make" name="make" required>
-            <datalist id="make-list">
+            <select id="make" name="make" required>
+                <option value="">Select Make</option>
                 {% for make in makes %}
-                <option value="{{ make }}">
+                <option value="{{ make }}">{{ make }}</option>
                 {% endfor %}
-            </datalist>
+            </select>
 
             <label for="model">Model:</label>
-            <input list="model-list" id="model" name="model" required>
-            <datalist id="model-list"></datalist>
+            <select id="model" name="model" required>
+                <option value="">Select Model</option>
+            </select>
 
             <label for="variant">Variant:</label>
-            <input list="variant-list" id="variant" name="variant" required>
-            <datalist id="variant-list"></datalist>
+            <select id="variant" name="variant" required>
+                <option value="">Select Variant</option>
+            </select>
 
             <label for="transmission">Transmission:</label>
-            <input list="transmission-list" id="transmission" name="transmission" required>
-            <datalist id="transmission-list"></datalist>
+            <select id="transmission" name="transmission" required>
+                <option value="">Select Transmission</option>
+            </select>
 
             <label for="fuel_type">Fuel Type:</label>
-            <input list="fuel_type-list" id="fuel_type" name="fuel_type" required>
-            <datalist id="fuel_type-list"></datalist>
+            <select id="fuel_type" name="fuel_type" required>
+                <option value="">Select Fuel Type</option>
+            </select>
 
             <label for="distance_numeric">Distance Numeric (km):</label>
             <input type="number" id="distance_numeric" name="distance_numeric" required>
@@ -139,12 +173,12 @@
             <input type="number" id="age" name="age" required>
 
             <label for="city">City:</label>
-            <input list="city-list" id="city" name="city" required>
-            <datalist id="city-list">
+            <select id="city" name="city" required>
+                <option value="">Select City</option>
                 {% for city in cities %}
-                <option value="{{ city }}">
+                <option value="{{ city }}">{{ city }}</option>
                 {% endfor %}
-            </datalist>
+            </select>
 
             <!-- Submit button for price prediction -->
             <button id="predict-btn" type="submit">Predict Price</button>
@@ -166,8 +200,7 @@
 
             <div class="feedback-box">
                 <label for="feedback">Feedback (Optional):</label>
-                <textarea id="feedback" name="feedback" rows="4" cols="50"
-                    placeholder="Mention if any improvement needed or if any specific car is missing..."></textarea>
+                <textarea id="feedback" name="feedback" rows="4" placeholder="Mention if any improvement needed or if any specific car is missing..."></textarea>
             </div>
 
             <!-- Submit feedback button -->
@@ -180,24 +213,27 @@
         let row_number;
 
         $(document).ready(function () {
+            // Initialize Select2 on the dropdowns
+            $('#make, #model, #variant, #transmission, #fuel_type, #city').select2();
+
             // Load stored values if available
             loadFormData();
 
             // Handle Make -> Model cascading
             $('#make').change(function () {
                 var make = $(this).val();
-                $('#model-list').empty();
-                $('#variant-list').empty();
-                $('#transmission-list').empty();
-                $('#fuel_type-list').empty();
-                
+                $('#model').empty().append('<option value="">Select Model</option>');
+                $('#variant').empty().append('<option value="">Select Variant</option>');
+                $('#transmission').empty().append('<option value="">Select Transmission</option>');
+                $('#fuel_type').empty().append('<option value="">Select Fuel Type</option>');
+
                 $.ajax({
                     url: '/get_models',
                     method: 'POST',
                     data: { make: make },
                     success: function (data) {
                         $.each(data, function (i, model) {
-                            $('#model-list').append('<option value="' + model + '">');
+                            $('#model').append('<option value="' + model + '">' + model + '</option>');
                         });
                     },
                     error: function () {
@@ -209,9 +245,9 @@
             // Handle Model -> Variant cascading
             $('#model').change(function () {
                 var model = $(this).val();
-                $('#variant-list').empty();
-                $('#transmission-list').empty();
-                $('#fuel_type-list').empty();
+                $('#variant').empty().append('<option value="">Select Variant</option>');
+                $('#transmission').empty().append('<option value="">Select Transmission</option>');
+                $('#fuel_type').empty().append('<option value="">Select Fuel Type</option>');
 
                 $.ajax({
                     url: '/get_variants',
@@ -219,7 +255,7 @@
                     data: { model: model },
                     success: function (data) {
                         $.each(data, function (i, variant) {
-                            $('#variant-list').append('<option value="' + variant + '">');
+                            $('#variant').append('<option value="' + variant + '">' + variant + '</option>');
                         });
                     },
                     error: function () {
@@ -231,8 +267,8 @@
             // Handle Variant -> Transmission & Fuel Type cascading
             $('#variant').change(function () {
                 var variant = $(this).val();
-                $('#transmission-list').empty();
-                $('#fuel_type-list').empty();
+                $('#transmission').empty().append('<option value="">Select Transmission</option>');
+                $('#fuel_type').empty().append('<option value="">Select Fuel Type</option>');
 
                 $.ajax({
                     url: '/get_details',
@@ -240,10 +276,10 @@
                     data: { variant: variant },
                     success: function (data) {
                         $.each(data.transmission, function (i, transmission) {
-                            $('#transmission-list').append('<option value="' + transmission + '">');
+                            $('#transmission').append('<option value="' + transmission + '">' + transmission + '</option>');
                         });
                         $.each(data.fuel_type, function (i, fuel_type) {
-                            $('#fuel_type-list').append('<option value="' + fuel_type + '">');
+                            $('#fuel_type').append('<option value="' + fuel_type + '">' + fuel_type + '</option>');
                         });
                     },
                     error: function () {
@@ -327,7 +363,7 @@
                 var savedData = JSON.parse(localStorage.getItem('formData'));
                 if (savedData) {
                     $('#vehicle_number').val(savedData.vehicle_number);
-                    $('#make').val(savedData.make);
+                    $('#make').val(savedData.make).trigger('change');
                     $('#model').val(savedData.model);
                     $('#variant').val(savedData.variant);
                     $('#transmission').val(savedData.transmission);
