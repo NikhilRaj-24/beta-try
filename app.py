@@ -149,6 +149,10 @@ def predict():
 
         # Make a prediction
         predicted_price = best_model.predict(input_transformed)[0]
+        
+        # Ensure the predicted price is rounded and stored as an integer
+        predicted_price = int(predicted_price)
+        predicted_price = round(predicted_price, -2)
 
         # Calculate the count of occurrences in the dataset
         count = df[
@@ -158,9 +162,6 @@ def predict():
             (df['Transmission'] == transmission) &
             (df['Fuel Type'] == fuel_type)
         ].shape[0]
-        
-        predicted_price = int(predicted_price)
-        predicted_price = round(predicted_price, -2)
 
         # Add data to Google Sheets, including the vehicle number
         row = [vehicle_number, make, model, variant, transmission, fuel_type, city, distance_numeric, age,
@@ -186,8 +187,13 @@ def submit_feedback():
         suggested_price = form_data.get('suggested_price', '')
         feedback = form_data.get('feedback', '')
 
-        # Update feedback and suggested price in the same row
-        sheet.update(f'J{row_number}:K{row_number}', [[suggested_price, feedback]])
+        # Ensure that suggested_price is stored as a number, not a string
+        if suggested_price:
+            suggested_price = int(suggested_price)  # Convert to int for correct storage
+
+        # Update feedback and suggested price in their correct columns
+        sheet.update(f'K{row_number}', [[suggested_price]])  # Suggested Price in column K (11th)
+        sheet.update(f'L{row_number}', [[feedback]])  # Feedback in column L (12th)
 
         return jsonify({'success': True})
 
