@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Price Prediction</title>
+
+    <!-- Add jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Favicon for the taskbar -->
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/3307/3307164.png" type="image/png" />
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            margin-bottom: 5px;
+        }
+
+        input,
+        select,
+        textarea {
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        .result {
+            margin-top: 20px;
+            font-size: 18px;
+            text-align: center;
+            color: #333;
+        }
+
+        .error {
+            color: red;
+        }
+
+        /* Warning message styling */
+        .warning-message {
+            margin-top: 10px;
+            color: red;
+            text-align: center;
+            display: none; /* Hidden by default */
+        }
+
+        /* Feedback box styling adjusted for consistent alignment */
+        .feedback-box {
+            margin-top: 20px;
+        }
+
+        /* New suggested-price class to create spacing */
+        .suggested-price {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>Car Price Prediction (Testing)</h2>
+        <form id="prediction-form">
+            <label for="make">Make:</label>
+            <input list="make-list" id="make" name="make" required>
+            <datalist id="make-list">
+                {% for make in makes %}
+                <option value="{{ make }}">
+                {% endfor %}
+            </datalist>
+
+            <label for="model">Model:</label>
+            <input list="model-list" id="model" name="model" required>
+            <datalist id="model-list"></datalist>
+
+            <label for="variant">Variant:</label>
+            <input list="variant-list" id="variant" name="variant" required>
+            <datalist id="variant-list"></datalist>
+
+            <label for="transmission">Transmission:</label>
+            <input list="transmission-list" id="transmission" name="transmission" required>
+            <datalist id="transmission-list"></datalist>
+
+            <label for="fuel_type">Fuel Type:</label>
+            <input list="fuel_type-list" id="fuel_type" name="fuel_type" required>
+            <datalist id="fuel_type-list"></datalist>
+
+            <label for="distance_numeric">Distance Numeric (km):</label>
+            <input type="number" id="distance_numeric" name="distance_numeric" required>
+
+            <label for="age">Age (Ex: 6, 7 year old car):</label>
+            <input type="number" id="age" name="age" required>
+
+            <label for="city">City:</label>
+            <input list="city-list" id="city" name="city" required>
+            <datalist id="city-list">
+                {% for city in cities %}
+                <option value="{{ city }}">
+                {% endfor %}
+            </datalist>
+
+            <!-- Submit button for price prediction -->
+            <button id="predict-btn" type="submit">Predict Price</button>
+        </form>
+
+        <!-- Predicted price will be displayed here -->
+        <div class="result" id="result"></div>
+        <div class="error" id="error"></div>
+
+        <!-- Warning message for less than 7 counts -->
+        <div class="warning-message" id="warning-message">
+            This prediction may not be accurate due to less training data. Please mention the price suggested so we could update the model.
+        </div>
+
+        <!-- Feedback form, which appears after prediction -->
+        <form id="feedback-form" style="display:none;">
+            <label for="suggested_price" class="suggested-price">Suggested price (your opinion/dealer mentioned):</label>
+            <input type="number" id="suggested_price" name="suggested_price" placeholder="Enter your price opinion">
+
+            <div class="feedback-box">
+                <label for="feedback">Feedback (Optional):</label>
+                <textarea id="feedback" name="feedback" rows="4" cols="50"
+                    placeholder="Mention if any improvement needed or if any specific car is missing..."></textarea>
+            </div>
+
+            <!-- Submit feedback button -->
+            <button id="submit-feedback-btn" type="submit">Submit Feedback</button>
+        </form>
+    </div>
+
+    <!-- JavaScript to handle form submission and Ajax calls -->
+    <script>
+        let row_number;
+
+        $(document).ready(function () {
+            // Load stored values if available
+            loadFormData();
+
+            // Handle Make -> Model cascading
+            $('#make').change(function () {
+                var make = $(this).val();
+                // Clear previous options
+                $('#model-list').empty();
+                $('#variant-list').empty();
+                $('#transmission-list').empty();
+                $('#fuel_type-list').empty();
+                
+                $.ajax({
+                    url: '/get_models',
+                    method: 'POST',
+                    data: { make: make },
+                    success: function (data) {
+                        $.each(data, function (i, model) {
+                            $('#model-list').append('<option value="' + model + '">');
+                        });
+                    },
+                    error: function () {
+                        $('#error').text('Error fetching models.');
+                    }
+                });
+            });
+
+            // Handle Model -> Variant cascading
+            $('#model').change(function () {
+                var model = $(this).val();
+                $('#variant-list').empty();
+                $('#transmission-list').empty();
+                $('#fuel_type-list').empty();
+
+                $.ajax({
+                    url: '/get_variants',
+                    method: 'POST',
+                    data: { model: model },
+                    success: function (data) {
+                        $.each(data, function (i, variant) {
+                            $('#variant-list').append('<option value="' + variant + '">');
+                        });
+                    },
+                    error: function () {
+                        $('#error').text('Error fetching variants.');
+                    }
+                });
+            });
+
+            // Handle Variant -> Transmission & Fuel Type cascading
+            $('#variant').change(function () {
+                var variant = $(this).val();
+                $('#transmission-list').empty();
+                $('#fuel_type-list').empty();
+
+                $.ajax({
+                    url: '/get_details',
+                    method: 'POST',
+                    data: { variant: variant },
+                    success: function (data) {
+                        $.each(data.transmission, function (i, transmission) {
+                            $('#transmission-list').append('<option value="' + transmission + '">');
+                        });
+                        $.each(data.fuel_type, function (i, fuel_type) {
+                            $('#fuel_type-list').append('<option value="' + fuel_type + '">');
+                        });
+                    },
+                    error: function () {
+                        $('#error').text('Error fetching transmission and fuel type.');
+                    }
+                });
+            });
+
+            // First submission for core data and prediction
+            $('#prediction-form').submit(function (e) {
+                e.preventDefault();
+                $('#result').empty();
+                $('#error').empty();
+                $('#warning-message').hide(); // Hide the warning by default
+
+                var formData = $(this).serialize();
+
+                // Save form data locally so the values persist
+                saveFormData();
+
+                $.ajax({
+                    url: '/predict',
+                    method: 'POST',
+                    data: formData,
+                    success: function (response) {
+                        $('#result').text('Predicted Price: ' + response.predicted_price);
+                        row_number = response.row_number; // Track row number for later
+                        $('#feedback-form').show(); // Show feedback form after prediction
+
+                        // Check if the count is less than 7 and show warning
+                        if (response.count < 7) {
+                            $('#warning-message').show(); // Show warning in red
+                        }
+                    },
+                    error: function () {
+                        $('#error').text('Error during prediction.');
+                    }
+                });
+            });
+
+            // Second submission for feedback and suggested price
+            $('#feedback-form').submit(function (e) {
+                e.preventDefault();
+
+                var feedbackData = {
+                    suggested_price: $('#suggested_price').val(),
+                    feedback: $('#feedback').val(),
+                    row_number: row_number  // Pass the row number to update
+                };
+
+                $.ajax({
+                    url: '/submit_feedback',
+                    method: 'POST',
+                    data: feedbackData,
+                    success: function () {
+                        alert('Feedback submitted successfully.');
+                        $('#feedback-form').hide();  // Hide feedback form after submission
+                    },
+                    error: function () {
+                        $('#error').text('Error during feedback submission.');
+                    }
+                });
+            });
+
+            // Function to save form data in localStorage
+            function saveFormData() {
+                var formData = {
+                    make: $('#make').val(),
+                    model: $('#model').val(),
+                    variant: $('#variant').val(),
+                    transmission: $('#transmission').val(),
+                    fuel_type: $('#fuel_type').val(),
+                    distance_numeric: $('#distance_numeric').val(),
+                    age: $('#age').val(),
+                    city: $('#city').val()
+                };
+                localStorage.setItem('formData', JSON.stringify(formData));
+            }
+
+            // Function to load saved form data from localStorage
+            function loadFormData() {
+                var savedData = JSON.parse(localStorage.getItem('formData'));
+                if (savedData) {
+                    $('#make').val(savedData.make);
+                    $('#model').val(savedData.model);
+                    $('#variant').val(savedData.variant);
+                    $('#transmission').val(savedData.transmission);
+                    $('#fuel_type').val(savedData.fuel_type);
+                    $('#distance_numeric').val(savedData.distance_numeric);
+                    $('#age').val(savedData.age);
+                    $('#city').val(savedData.city);
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
