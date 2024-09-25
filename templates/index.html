@@ -85,7 +85,7 @@
             margin-top: 10px;
             color: red;
             text-align: center;
-            display: none; /* Hidden by default */
+            display: none;
         }
 
         /* Feedback box styling adjusted for consistent alignment */
@@ -104,6 +104,10 @@
     <div class="container">
         <h2>Car Price Prediction (Testing)</h2>
         <form id="prediction-form">
+            <!-- New Vehicle Number input -->
+            <label for="vehicle_number">Vehicle Number:</label>
+            <input type="text" id="vehicle_number" name="vehicle_number" placeholder="Enter vehicle number">
+
             <label for="make">Make:</label>
             <input list="make-list" id="make" name="make" required>
             <datalist id="make-list">
@@ -182,7 +186,6 @@
             // Handle Make -> Model cascading
             $('#make').change(function () {
                 var make = $(this).val();
-                // Clear previous options
                 $('#model-list').empty();
                 $('#variant-list').empty();
                 $('#transmission-list').empty();
@@ -254,11 +257,10 @@
                 e.preventDefault();
                 $('#result').empty();
                 $('#error').empty();
-                $('#warning-message').hide(); // Hide the warning by default
+                $('#warning-message').hide();
 
                 var formData = $(this).serialize();
 
-                // Save form data locally so the values persist
                 saveFormData();
 
                 $.ajax({
@@ -267,12 +269,11 @@
                     data: formData,
                     success: function (response) {
                         $('#result').text('Predicted Price: ' + response.predicted_price);
-                        row_number = response.row_number; // Track row number for later
-                        $('#feedback-form').show(); // Show feedback form after prediction
+                        row_number = response.row_number;
+                        $('#feedback-form').show();
 
-                        // Check if the count is less than 7 and show warning
                         if (response.count < 7) {
-                            $('#warning-message').show(); // Show warning in red
+                            $('#warning-message').show();
                         }
                     },
                     error: function () {
@@ -288,7 +289,7 @@
                 var feedbackData = {
                     suggested_price: $('#suggested_price').val(),
                     feedback: $('#feedback').val(),
-                    row_number: row_number  // Pass the row number to update
+                    row_number: row_number
                 };
 
                 $.ajax({
@@ -297,7 +298,7 @@
                     data: feedbackData,
                     success: function () {
                         alert('Feedback submitted successfully.');
-                        $('#feedback-form').hide();  // Hide feedback form after submission
+                        $('#feedback-form').hide();
                     },
                     error: function () {
                         $('#error').text('Error during feedback submission.');
@@ -308,6 +309,7 @@
             // Function to save form data in localStorage
             function saveFormData() {
                 var formData = {
+                    vehicle_number: $('#vehicle_number').val(),
                     make: $('#make').val(),
                     model: $('#model').val(),
                     variant: $('#variant').val(),
@@ -324,6 +326,7 @@
             function loadFormData() {
                 var savedData = JSON.parse(localStorage.getItem('formData'));
                 if (savedData) {
+                    $('#vehicle_number').val(savedData.vehicle_number);
                     $('#make').val(savedData.make);
                     $('#model').val(savedData.model);
                     $('#variant').val(savedData.variant);
